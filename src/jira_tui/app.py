@@ -15,6 +15,7 @@ from textual.widgets import (
     Label,
     ListItem,
     ListView,
+    Markdown,
     Static,
     TabbedContent,
     TabPane,
@@ -242,7 +243,7 @@ class JiraTuiApp(App[None]):
                     with TabbedContent(id="detail-tabs"):
                         for index, tab in enumerate(self._detail_tabs()):
                             with TabPane(tab.label, id=self._tab_pane_id(index)):
-                                yield Static("", id=self._tab_content_id(index))
+                                yield Markdown("", id=self._tab_content_id(index))
             yield Static("", id="status")
         yield Footer()
 
@@ -416,7 +417,7 @@ class JiraTuiApp(App[None]):
             )
         )
         for index, tab in enumerate(self._detail_tabs()):
-            self.query_one(f"#{self._tab_content_id(index)}", Static).update(
+            self.query_one(f"#{self._tab_content_id(index)}", Markdown).update(
                 self._content_for_detail_tab(issue, tab)
             )
 
@@ -436,7 +437,9 @@ class JiraTuiApp(App[None]):
     def _content_for_detail_tab(self, issue: IssueDetail, tab: DetailTabConfig) -> str:
         if tab.source == "comments":
             return self._format_comments(issue)
-        return extract_field_path_text(issue.raw_fields, tab.source) or "No content."
+        if "." in tab.source:
+            return extract_field_path_text(issue.raw_fields, tab.source) or "No content."
+        return issue.markdown_fields.get(tab.source) or "No content."
 
     def _format_comments(self, issue: IssueDetail) -> str:
         if issue.comments:

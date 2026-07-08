@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from markdownify import markdownify
+
 
 @dataclass(frozen=True)
 class JiraUser:
@@ -75,6 +77,7 @@ class IssueDetail:
     description: str
     raw_fields: dict[str, Any] = field(default_factory=dict)
     detail_fields: dict[str, str] = field(default_factory=dict)
+    markdown_fields: dict[str, str] = field(default_factory=dict)
     comments: tuple[Comment, ...] = field(default_factory=tuple)
 
     @classmethod
@@ -98,6 +101,7 @@ class IssueDetail:
             description=extract_adf_text(fields.get("description")),
             raw_fields=fields,
             detail_fields={key: extract_adf_text(value) for key, value in fields.items()},
+            markdown_fields={key: render_field_markdown(value) for key, value in fields.items()},
             comments=comments,
         )
 
@@ -190,6 +194,14 @@ def extract_field_path_text(fields: dict[str, Any], source: str) -> str:
     return ", ".join(text for value in values if (text := extract_value_text(value)))
 
 
+def render_field_markdown(value: Any) -> str:
+    if isinstance(value, str) and _looks_like_html(value):
+        return markdownify(value).strip()
+    if isinstance(value, dict) and value.get("type") == "doc":
+        return _adf_to_markdown(value).strip()
+    return extract_value_text(value)
+
+
 def extract_value_text(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(text for item in value if (text := extract_value_text(item)))
@@ -210,3 +222,62 @@ def _path_value(value: Any, key: str) -> Any:
     if isinstance(value, dict):
         return value.get(key)
     return None
+
+
+def _looks_like_html(value: str) -> bool:
+    stripped = value.strip()
+    return stripped.startswith("<") and ">" in stripped
+
+
+def _adf_to_markdown(node: Any) -> str:
+    if isinstance(node, list):
+        return "".join(_adf_to_markdown(item) for item in node)
+    if not isinstance(node, dict):
+        return ""
+
+    node_type = node.get("type")
+    content = node.get("content") or []
+    if node_type == "doc":
+        return "\n\n".join(
+            block for child in content if (block := _adf_to_markdown(child).strip())
+        )
+    if node_type == "paragraph":
+        return _adf_to_markdown(content)
+    if node_type == "heading":
+        level = int((node.get("attrs") or {}).get("level") or 2)
+        return f"{'#' * max(1, min(level, 6))} {_adf_to_markdown(content).strip()}"
+    if node_type == "bulletList":
+        return "\n".join(_adf_list_item(child, "-") for child in content)
+    if node_type == "orderedList":
+        return "\n".join(
+            _adf_list_item(child, f"{index}.") for index, child in enumerate(content, 1)
+        )
+    if node_type == "listItem":
+        return _adf_to_markdown(content)
+    if node_type == "text":
+        return _adf_text_node_to_markdown(node)
+    if node_type == "hardBreak":
+        return "\n"
+    return _adf_to_markdown(content)
+
+
+def _adf_list_item(node: dict[str, Any], marker: str) -> str:
+    text = _adf_to_markdown(node).strip().replace("\n", "\n  ")
+    return f"{marker} {text}"
+
+
+def _adf_text_node_to_markdown(node: dict[str, Any]) -> str:
+    text = str(node.get("text") or "")
+    for mark in node.get("marks") or []:
+        mark_type = mark.get("type")
+        if mark_type == "strong":
+            text = f"**{text}**"
+        elif mark_type == "em":
+            text = f"*{text}*"
+        elif mark_type == "code":
+            text = f"`{text}`"
+        elif mark_type == "link":
+            href = (mark.get("attrs") or {}).get("href")
+            if href:
+                text = f"[{text}]({href})"
+    return text

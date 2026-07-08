@@ -6,6 +6,7 @@ from jira_tui.models import (
     adf_from_text,
     extract_adf_text,
     extract_field_path_text,
+    render_field_markdown,
 )
 
 
@@ -84,3 +85,39 @@ def test_extract_field_path_text_maps_array_property() -> None:
     }
 
     assert extract_field_path_text(fields, "customfield_10020[].name") == "Sprint 1, Sprint 2"
+
+
+def test_render_field_markdown_converts_html() -> None:
+    assert render_field_markdown("<p>Hello <strong>world</strong></p>").strip() == (
+        "Hello **world**"
+    )
+
+
+def test_render_field_markdown_converts_basic_adf() -> None:
+    adf = {
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {
+                "type": "heading",
+                "attrs": {"level": 2},
+                "content": [{"type": "text", "text": "Title"}],
+            },
+            {
+                "type": "bulletList",
+                "content": [
+                    {
+                        "type": "listItem",
+                        "content": [
+                            {
+                                "type": "paragraph",
+                                "content": [{"type": "text", "text": "Item"}],
+                            }
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+
+    assert render_field_markdown(adf) == "## Title\n\n- Item"

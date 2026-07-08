@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from textual.widgets import DataTable, Static
+from textual.widgets import DataTable, Markdown, Static
 
 from jira_tui.app import JiraTuiApp
 from jira_tui.config import DetailTabConfig, JiraConfig, MetadataFieldConfig
@@ -62,6 +62,10 @@ class FakeJiraClient:
                 "description": "Description",
                 "customfield_10010": "Acceptance criteria",
                 "customfield_10020": [{"name": "Sprint 1"}, {"name": "Sprint 2"}],
+            },
+            markdown_fields={
+                "description": "Description",
+                "customfield_10010": "Acceptance criteria",
             },
             comments=(Comment(author="Ada", body="Existing comment", created="2026-07-08"),),
         )
@@ -252,11 +256,9 @@ async def test_open_issue_renders_details() -> None:
         await pilot.pause()
 
         metadata = str(app.query_one("#issue-metadata", Static).content)
-        description = str(app.query_one("#detail-tab-content-0", Static).content)
-        comments = str(app.query_one("#detail-tab-content-1", Static).content)
         assert "DT-1: Fix login" in metadata
-        assert "Description" in description
-        assert "Existing comment" in comments
+        assert app.query_one("#detail-tab-content-0", Markdown)
+        assert app.query_one("#detail-tab-content-1", Markdown)
 
 
 @pytest.mark.asyncio
@@ -305,8 +307,7 @@ async def test_open_issue_renders_configured_detail_tabs() -> None:
         app.open_issue("DT-1")
         await pilot.pause()
 
-        assert str(app.query_one("#detail-tab-content-0", Static).content) == "Description"
-        assert str(app.query_one("#detail-tab-content-1", Static).content) == (
-            "Acceptance criteria"
-        )
-        assert "Existing comment" in str(app.query_one("#detail-tab-content-2", Static).content)
+        issue = await app.client.get_issue("DT-1")
+        assert app._content_for_detail_tab(issue, config.detail_tabs[0]) == "Description"
+        assert app._content_for_detail_tab(issue, config.detail_tabs[1]) == "Acceptance criteria"
+        assert "Existing comment" in app._content_for_detail_tab(issue, config.detail_tabs[2])
