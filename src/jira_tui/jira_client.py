@@ -132,11 +132,13 @@ class JiraClient:
             "description",
         ]
         for field in self._config.metadata_fields:
-            if field.source not in fields:
-                fields.append(field.source)
+            field_key = _field_key(field.source)
+            if field_key not in fields:
+                fields.append(field_key)
         for tab in self._config.detail_tabs:
-            if tab.source != "comments" and tab.source not in fields:
-                fields.append(tab.source)
+            field_key = _field_key(tab.source)
+            if field_key != "comments" and field_key not in fields:
+                fields.append(field_key)
         return tuple(fields)
 
 
@@ -154,3 +156,7 @@ def _error_message(response: httpx.Response) -> str:
     for field, message in errors.items():
         messages.append(f"{field}: {message}")
     return "; ".join(messages) or default
+
+
+def _field_key(source: str) -> str:
+    return source.split(".", 1)[0].removesuffix("[]")

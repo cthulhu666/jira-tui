@@ -46,6 +46,7 @@ The metadata fields under the issue title are configurable too:
 ```ini
 [metadata_fields]
 Status = status
+Sprint = customfield_10020[].name
 Assignee = assignee
 Reporter = reporter
 Priority = priority
@@ -53,6 +54,8 @@ Labels = labels
 ```
 
 You can also use custom field keys there, for example `Severity = customfield_12345`.
+For array/object custom fields, append a simple path, for example
+`Sprint = customfield_10020[].name` displays the `name` value from each item.
 
 Run the app:
 

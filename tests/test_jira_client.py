@@ -130,7 +130,7 @@ async def test_get_issue_requests_configured_detail_and_metadata_fields() -> Non
                     "labels": [],
                     "description": None,
                     "customfield_10010": "Acceptance",
-                    "customfield_10020": "Severity",
+                    "customfield_10020": [{"name": "Sprint 1"}],
                 },
             },
         )
@@ -143,7 +143,7 @@ async def test_get_issue_requests_configured_detail_and_metadata_fields() -> Non
             api_token="token",
             metadata_fields=(
                 MetadataFieldConfig("Status", "status"),
-                MetadataFieldConfig("Severity", "customfield_10020"),
+                MetadataFieldConfig("Sprint", "customfield_10020[].name"),
             ),
             detail_tabs=(
                 DetailTabConfig("Description", "description"),
@@ -160,7 +160,7 @@ async def test_get_issue_requests_configured_detail_and_metadata_fields() -> Non
     assert "customfield_10020" in seen_fields.split(",")
     assert "comments" not in seen_fields.split(",")
     assert issue.detail_fields["customfield_10010"] == "Acceptance"
-    assert issue.detail_fields["customfield_10020"] == "Severity"
+    assert issue.raw_fields["customfield_10020"] == [{"name": "Sprint 1"}]
 
 
 @pytest.mark.asyncio

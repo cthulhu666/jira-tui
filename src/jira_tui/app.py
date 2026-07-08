@@ -31,7 +31,7 @@ from jira_tui.config import (
     load_config,
 )
 from jira_tui.jira_client import JiraClient, JiraClientError
-from jira_tui.models import IssueDetail, IssueSummary, Transition
+from jira_tui.models import IssueDetail, IssueSummary, Transition, extract_field_path_text
 
 ClientFactory = Callable[[JiraConfig], JiraClient]
 
@@ -431,12 +431,12 @@ class JiraTuiApp(App[None]):
             return issue.priority
         if field.source == "labels":
             return ", ".join(issue.labels) if issue.labels else "None"
-        return issue.detail_fields.get(field.source) or "None"
+        return extract_field_path_text(issue.raw_fields, field.source) or "None"
 
     def _content_for_detail_tab(self, issue: IssueDetail, tab: DetailTabConfig) -> str:
         if tab.source == "comments":
             return self._format_comments(issue)
-        return issue.detail_fields.get(tab.source) or "No content."
+        return extract_field_path_text(issue.raw_fields, tab.source) or "No content."
 
     def _format_comments(self, issue: IssueDetail) -> str:
         if issue.comments:

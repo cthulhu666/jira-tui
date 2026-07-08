@@ -72,6 +72,7 @@ class IssueDetail:
     priority: str
     labels: tuple[str, ...]
     description: str
+    raw_fields: dict[str, Any] = field(default_factory=dict)
     detail_fields: dict[str, str] = field(default_factory=dict)
     comments: tuple[Comment, ...] = field(default_factory=tuple)
 
@@ -94,6 +95,7 @@ class IssueDetail:
             priority=str(priority.get("name") or "None"),
             labels=tuple(str(label) for label in fields.get("labels") or []),
             description=extract_adf_text(fields.get("description")),
+            raw_fields=fields,
             detail_fields={key: extract_adf_text(value) for key, value in fields.items()},
             comments=comments,
         )
@@ -150,3 +152,49 @@ def extract_adf_text(value: Any) -> str:
 
     walk(value)
     return "\n".join(line.strip() for line in "".join(parts).splitlines() if line.strip())
+
+
+def extract_field_path_text(fields: dict[str, Any], source: str) -> str:
+    field_key, *path_parts = source.split(".")
+    expand_root = field_key.endswith("[]")
+    field_key = field_key.removesuffix("[]")
+    value: Any = fields.get(field_key)
+    values = list(value) if expand_root and isinstance(value, list) else [value]
+    if not path_parts:
+        return ", ".join(text for value in values if (text := extract_value_text(value)))
+    for part in path_parts:
+        next_values: list[Any] = []
+        expand_list = part.endswith("[]")
+        key = part.removesuffix("[]")
+        for item in values:
+            if expand_list:
+                if isinstance(item, list):
+                    next_values.extend(_path_value(child, key) for child in item)
+                else:
+                    next_values.append(_path_value(item, key))
+            else:
+                next_values.append(_path_value(item, key))
+        values = next_values
+    return ", ".join(text for value in values if (text := extract_value_text(value)))
+
+
+def extract_value_text(value: Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(text for item in value if (text := extract_value_text(item)))
+    if isinstance(value, dict):
+        if "content" in value:
+            return extract_adf_text(value)
+        if "name" in value:
+            return str(value["name"])
+        if "value" in value:
+            return str(value["value"])
+        return ""
+    return extract_adf_text(value)
+
+
+def _path_value(value: Any, key: str) -> Any:
+    if key == "":
+        return value
+    if isinstance(value, dict):
+        return value.get(key)
+    return None

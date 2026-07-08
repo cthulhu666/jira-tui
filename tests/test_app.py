@@ -57,7 +57,11 @@ class FakeJiraClient:
             detail_fields={
                 "description": "Description",
                 "customfield_10010": "Acceptance criteria",
-                "customfield_10020": "High impact",
+            },
+            raw_fields={
+                "description": "Description",
+                "customfield_10010": "Acceptance criteria",
+                "customfield_10020": [{"name": "Sprint 1"}, {"name": "Sprint 2"}],
             },
             comments=(Comment(author="Ada", body="Existing comment", created="2026-07-08"),),
         )
@@ -264,7 +268,7 @@ async def test_open_issue_renders_configured_metadata_fields() -> None:
         metadata_fields=(
             MetadataFieldConfig("State", "status"),
             MetadataFieldConfig("Owner", "assignee"),
-            MetadataFieldConfig("Impact", "customfield_10020"),
+            MetadataFieldConfig("Sprint", "customfield_10020[].name"),
         ),
     )
     app = JiraTuiApp(config=config, client_factory=FakeJiraClient)
@@ -278,7 +282,7 @@ async def test_open_issue_renders_configured_metadata_fields() -> None:
         assert "DT-1: Fix login" in metadata
         assert "State: To Do" in metadata
         assert "Owner: Ada" in metadata
-        assert "Impact: High impact" in metadata
+        assert "Sprint: Sprint 1, Sprint 2" in metadata
         assert "Reporter:" not in metadata
 
 

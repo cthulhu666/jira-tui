@@ -1,4 +1,10 @@
-from jira_tui.models import IssueDetail, IssueSummary, adf_from_text, extract_adf_text
+from jira_tui.models import (
+    IssueDetail,
+    IssueSummary,
+    adf_from_text,
+    extract_adf_text,
+    extract_field_path_text,
+)
 
 
 def test_adf_round_trip_text() -> None:
@@ -61,3 +67,14 @@ def test_issue_summary_maps_subtask_parent() -> None:
     assert issue.is_subtask is True
     assert issue.parent_key == "DT-1"
     assert issue.parent_summary == "Parent task"
+
+
+def test_extract_field_path_text_maps_array_property() -> None:
+    fields = {
+        "customfield_10020": [
+            {"id": 1, "name": "Sprint 1"},
+            {"id": 2, "name": "Sprint 2"},
+        ]
+    }
+
+    assert extract_field_path_text(fields, "customfield_10020[].name") == "Sprint 1, Sprint 2"
