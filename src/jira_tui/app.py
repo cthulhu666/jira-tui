@@ -239,7 +239,8 @@ class JiraTuiApp(App[None]):
             with Horizontal(id="content"):
                 yield DataTable(id="issue-table", cursor_type="row")
                 with Vertical(id="detail-pane"):
-                    yield Static("No issue selected.", id="issue-metadata")
+                    yield Static("No issue selected.", id="issue-title")
+                    yield Static("", id="issue-metadata")
                     with TabbedContent(id="detail-tabs"):
                         for index, tab in enumerate(self._detail_tabs()):
                             with TabPane(tab.label, id=self._tab_pane_id(index)):
@@ -407,13 +408,11 @@ class JiraTuiApp(App[None]):
             )
 
     def _render_issue(self, issue: IssueDetail) -> None:
+        self.query_one("#issue-title", Static).update(f"{issue.key}: {issue.summary}")
         self.query_one("#issue-metadata", Static).update(
             "\n".join(
-                [f"{issue.key}: {issue.summary}"]
-                + [
-                    f"{field.label}: {self._content_for_metadata_field(issue, field)}"
-                    for field in self._metadata_fields()
-                ]
+                f"{field.label}: {self._content_for_metadata_field(issue, field)}"
+                for field in self._metadata_fields()
             )
         )
         for index, tab in enumerate(self._detail_tabs()):

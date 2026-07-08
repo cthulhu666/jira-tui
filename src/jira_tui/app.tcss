@@ -23,6 +23,15 @@
     padding: 0 1;
 }
 
+#issue-title {
+    height: auto;
+    min-height: 2;
+    padding: 0 0;
+    margin-bottom: 1;
+    color: $accent;
+    text-style: bold;
+}
+
 #issue-metadata {
     height: auto;
     margin-bottom: 1;

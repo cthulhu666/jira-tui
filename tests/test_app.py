@@ -251,8 +251,8 @@ async def test_open_issue_renders_details() -> None:
         app.open_issue("DT-1")
         await pilot.pause()
 
-        metadata = str(app.query_one("#issue-metadata", Static).content)
-        assert "DT-1: Fix login" in metadata
+        title = str(app.query_one("#issue-title", Static).content)
+        assert "DT-1: Fix login" in title
         assert app.query_one("#detail-tab-content-0", Markdown)
         assert app.query_one("#detail-tab-content-1", Markdown)
 
@@ -276,8 +276,9 @@ async def test_open_issue_renders_configured_metadata_fields() -> None:
         app.open_issue("DT-1")
         await pilot.pause()
 
+        title = str(app.query_one("#issue-title", Static).content)
         metadata = str(app.query_one("#issue-metadata", Static).content)
-        assert "DT-1: Fix login" in metadata
+        assert "DT-1: Fix login" in title
         assert "State: To Do" in metadata
         assert "Owner: Ada" in metadata
         assert "Sprint: Sprint 1, Sprint 2" in metadata
