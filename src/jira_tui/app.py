@@ -471,7 +471,7 @@ class JiraTuiApp(App[None]):
             table.add_row(
                 f"{indentation}{marker}{issue.key}",
                 issue.status,
-                issue.summary,
+                _trim_table_text(issue.summary, 50),
                 issue.assignee,
                 issue.updated,
                 key=issue.key,
@@ -546,3 +546,9 @@ class JiraTuiApp(App[None]):
 
     def _tab_content_id(self, index: int) -> str:
         return f"detail-tab-content-{index}"
+
+
+def _trim_table_text(value: str, max_length: int) -> str:
+    if len(value) <= max_length:
+        return value
+    return value[: max_length - 1] + "…"
