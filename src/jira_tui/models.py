@@ -76,7 +76,6 @@ class IssueDetail:
     labels: tuple[str, ...]
     description: str
     raw_fields: dict[str, Any] = field(default_factory=dict)
-    detail_fields: dict[str, str] = field(default_factory=dict)
     markdown_fields: dict[str, str] = field(default_factory=dict)
     comments: tuple[Comment, ...] = field(default_factory=tuple)
 
@@ -100,7 +99,6 @@ class IssueDetail:
             labels=tuple(str(label) for label in fields.get("labels") or []),
             description=extract_adf_text(fields.get("description")),
             raw_fields=fields,
-            detail_fields={key: extract_adf_text(value) for key, value in fields.items()},
             markdown_fields={key: render_field_markdown(value) for key, value in fields.items()},
             comments=comments,
         )

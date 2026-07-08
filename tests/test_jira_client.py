@@ -163,7 +163,7 @@ async def test_get_issue_requests_configured_detail_and_metadata_fields() -> Non
     assert "customfield_10010" in seen_fields.split(",")
     assert "customfield_10020" in seen_fields.split(",")
     assert "comments" not in seen_fields.split(",")
-    assert issue.detail_fields["customfield_10010"] == "Acceptance"
+    assert issue.markdown_fields["customfield_10010"] == "Acceptance"
     assert issue.raw_fields["customfield_10020"] == [{"name": "Sprint 1"}]
 
 

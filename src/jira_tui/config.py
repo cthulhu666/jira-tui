@@ -17,11 +17,6 @@ class DetailTabConfig:
     label: str
     source: str
 
-    @property
-    def pane_id(self) -> str:
-        value = "".join(char.lower() if char.isalnum() else "-" for char in self.label)
-        return "tab-" + "-".join(part for part in value.split("-") if part)
-
 
 DEFAULT_DETAIL_TABS = (
     DetailTabConfig("Description", "description"),
@@ -64,14 +59,21 @@ def default_config_path() -> Path:
 
 def load_config(path: Path | None = None, environ: dict[str, str] | None = None) -> JiraConfig:
     env = environ if environ is not None else os.environ
-    file_values = _read_config_file(path or default_config_path())
+    config_path = path or default_config_path()
+    file_values = _read_config_file(config_path)
 
     base_url = env.get("JIRA_BASE_URL") or file_values.get("base_url") or ""
     email = env.get("JIRA_EMAIL") or file_values.get("email") or ""
     api_token = env.get("JIRA_API_TOKEN") or file_values.get("api_token") or ""
     default_jql = env.get("JIRA_DEFAULT_JQL") or file_values.get("default_jql") or DEFAULT_JQL
-    metadata_fields = _read_metadata_fields(path or default_config_path())
-    detail_tabs = _read_detail_tabs(path or default_config_path())
+    metadata_fields = (
+        _read_field_configs(config_path, section="metadata_fields", config_type=MetadataFieldConfig)
+        or DEFAULT_METADATA_FIELDS
+    )
+    detail_tabs = (
+        _read_field_configs(config_path, section="detail_tabs", config_type=DetailTabConfig)
+        or DEFAULT_DETAIL_TABS
+    )
 
     missing = [
         name
@@ -87,7 +89,7 @@ def load_config(path: Path | None = None, environ: dict[str, str] | None = None)
             "Missing Jira configuration: "
             + ", ".join(missing)
             + ". Set environment variables or create "
-            + str(path or default_config_path())
+            + str(config_path)
             + "."
         )
 
@@ -109,20 +111,6 @@ def _read_config_file(path: Path) -> dict[str, str]:
     if not parser.has_section("jira"):
         return {}
     return {key: value for key, value in parser.items("jira")}
-
-
-def _read_detail_tabs(path: Path) -> tuple[DetailTabConfig, ...]:
-    return (
-        _read_field_configs(path, section="detail_tabs", config_type=DetailTabConfig)
-        or DEFAULT_DETAIL_TABS
-    )
-
-
-def _read_metadata_fields(path: Path) -> tuple[MetadataFieldConfig, ...]:
-    return (
-        _read_field_configs(path, section="metadata_fields", config_type=MetadataFieldConfig)
-        or DEFAULT_METADATA_FIELDS
-    )
 
 
 def _read_field_configs[T](

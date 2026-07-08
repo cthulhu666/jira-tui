@@ -54,10 +54,6 @@ class FakeJiraClient:
             priority="High",
             labels=("bug",),
             description="Description",
-            detail_fields={
-                "description": "Description",
-                "customfield_10010": "Acceptance criteria",
-            },
             raw_fields={
                 "description": "Description",
                 "customfield_10010": "Acceptance criteria",

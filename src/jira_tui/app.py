@@ -536,14 +536,10 @@ class JiraTuiApp(App[None]):
             return None
 
     def _detail_tabs(self) -> tuple[DetailTabConfig, ...]:
-        if self.jira_config is not None:
-            return self.jira_config.detail_tabs
-        return DEFAULT_DETAIL_TABS
+        return self.jira_config.detail_tabs if self.jira_config else DEFAULT_DETAIL_TABS
 
     def _metadata_fields(self) -> tuple[MetadataFieldConfig, ...]:
-        if self.jira_config is not None:
-            return self.jira_config.metadata_fields
-        return DEFAULT_METADATA_FIELDS
+        return self.jira_config.metadata_fields if self.jira_config else DEFAULT_METADATA_FIELDS
 
     def _tab_pane_id(self, index: int) -> str:
         return f"detail-tab-{index}"

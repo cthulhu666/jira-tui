@@ -149,12 +149,8 @@ def _error_message(response: httpx.Response) -> str:
     except ValueError:
         return default
 
-    messages: list[str] = []
-    for item in payload.get("errorMessages") or []:
-        messages.append(str(item))
-    errors = payload.get("errors") or {}
-    for field, message in errors.items():
-        messages.append(f"{field}: {message}")
+    messages = [str(item) for item in payload.get("errorMessages") or []]
+    messages += [f"{field}: {message}" for field, message in (payload.get("errors") or {}).items()]
     return "; ".join(messages) or default
 
 
