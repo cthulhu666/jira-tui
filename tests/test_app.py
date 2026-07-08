@@ -4,7 +4,7 @@ import pytest
 from textual.widgets import DataTable, Static
 
 from jira_tui.app import JiraTuiApp
-from jira_tui.config import DetailTabConfig, JiraConfig
+from jira_tui.config import DetailTabConfig, JiraConfig, MetadataFieldConfig
 from jira_tui.jira_client import IssueSearchResult
 from jira_tui.models import Comment, IssueDetail, IssueSummary, Transition
 
@@ -57,6 +57,7 @@ class FakeJiraClient:
             detail_fields={
                 "description": "Description",
                 "customfield_10010": "Acceptance criteria",
+                "customfield_10020": "High impact",
             },
             comments=(Comment(author="Ada", body="Existing comment", created="2026-07-08"),),
         )
@@ -252,6 +253,33 @@ async def test_open_issue_renders_details() -> None:
         assert "DT-1: Fix login" in metadata
         assert "Description" in description
         assert "Existing comment" in comments
+
+
+@pytest.mark.asyncio
+async def test_open_issue_renders_configured_metadata_fields() -> None:
+    config = JiraConfig(
+        base_url="https://example.atlassian.net",
+        email="me@example.com",
+        api_token="token",
+        metadata_fields=(
+            MetadataFieldConfig("State", "status"),
+            MetadataFieldConfig("Owner", "assignee"),
+            MetadataFieldConfig("Impact", "customfield_10020"),
+        ),
+    )
+    app = JiraTuiApp(config=config, client_factory=FakeJiraClient)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.open_issue("DT-1")
+        await pilot.pause()
+
+        metadata = str(app.query_one("#issue-metadata", Static).content)
+        assert "DT-1: Fix login" in metadata
+        assert "State: To Do" in metadata
+        assert "Owner: Ada" in metadata
+        assert "Impact: High impact" in metadata
+        assert "Reporter:" not in metadata
 
 
 @pytest.mark.asyncio

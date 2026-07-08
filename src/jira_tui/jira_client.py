@@ -131,6 +131,9 @@ class JiraClient:
             "labels",
             "description",
         ]
+        for field in self._config.metadata_fields:
+            if field.source not in fields:
+                fields.append(field.source)
         for tab in self._config.detail_tabs:
             if tab.source != "comments" and tab.source not in fields:
                 fields.append(tab.source)

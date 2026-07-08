@@ -41,6 +41,19 @@ Comments = comments
 Use Jira field keys, such as `customfield_10010`, for custom fields. The special source
 `comments` renders the issue comments tab.
 
+The metadata fields under the issue title are configurable too:
+
+```ini
+[metadata_fields]
+Status = status
+Assignee = assignee
+Reporter = reporter
+Priority = priority
+Labels = labels
+```
+
+You can also use custom field keys there, for example `Severity = customfield_12345`.
+
 Run the app:
 
 ```sh

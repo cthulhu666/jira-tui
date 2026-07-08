@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 
-from jira_tui.config import DetailTabConfig, JiraConfig
+from jira_tui.config import DetailTabConfig, JiraConfig, MetadataFieldConfig
 from jira_tui.jira_client import JiraAuthError, JiraClient, JiraQueryError
 
 
@@ -109,7 +109,7 @@ async def test_add_comment_sends_adf_body() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_issue_requests_configured_detail_tab_fields() -> None:
+async def test_get_issue_requests_configured_detail_and_metadata_fields() -> None:
     seen_fields: str | None = None
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -130,6 +130,7 @@ async def test_get_issue_requests_configured_detail_tab_fields() -> None:
                     "labels": [],
                     "description": None,
                     "customfield_10010": "Acceptance",
+                    "customfield_10020": "Severity",
                 },
             },
         )
@@ -140,6 +141,10 @@ async def test_get_issue_requests_configured_detail_tab_fields() -> None:
             base_url="https://example.atlassian.net",
             email="me@example.com",
             api_token="token",
+            metadata_fields=(
+                MetadataFieldConfig("Status", "status"),
+                MetadataFieldConfig("Severity", "customfield_10020"),
+            ),
             detail_tabs=(
                 DetailTabConfig("Description", "description"),
                 DetailTabConfig("Acceptance Criteria", "customfield_10010"),
@@ -152,8 +157,10 @@ async def test_get_issue_requests_configured_detail_tab_fields() -> None:
 
     assert seen_fields is not None
     assert "customfield_10010" in seen_fields.split(",")
+    assert "customfield_10020" in seen_fields.split(",")
     assert "comments" not in seen_fields.split(",")
     assert issue.detail_fields["customfield_10010"] == "Acceptance"
+    assert issue.detail_fields["customfield_10020"] == "Severity"
 
 
 @pytest.mark.asyncio

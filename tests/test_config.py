@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from jira_tui.config import DEFAULT_JQL, ConfigError, load_config
+from jira_tui.config import DEFAULT_JQL, DEFAULT_METADATA_FIELDS, ConfigError, load_config
 
 
 def test_load_config_from_environment() -> None:
@@ -56,6 +56,19 @@ def test_missing_required_config_raises() -> None:
         load_config(Path("/missing.ini"), {})
 
 
+def test_load_config_uses_default_metadata_fields() -> None:
+    config = load_config(
+        Path("/missing.ini"),
+        {
+            "JIRA_BASE_URL": "https://example.atlassian.net/",
+            "JIRA_EMAIL": "me@example.com",
+            "JIRA_API_TOKEN": "token",
+        },
+    )
+
+    assert config.metadata_fields == DEFAULT_METADATA_FIELDS
+
+
 def test_load_config_reads_detail_tabs_in_file_order(tmp_path: Path) -> None:
     config_file = tmp_path / "config.ini"
     config_file.write_text(
@@ -85,4 +98,32 @@ def test_load_config_reads_detail_tabs_in_file_order(tmp_path: Path) -> None:
         ("Out of Scope", "customfield_10011"),
         ("Technical Details", "customfield_10012"),
         ("Comments", "comments"),
+    ]
+
+
+def test_load_config_reads_metadata_fields_in_file_order(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[jira]",
+                "base_url = https://file.atlassian.net",
+                "email = file@example.com",
+                "api_token = file-token",
+                "",
+                "[metadata_fields]",
+                "Status = status",
+                "Owner = assignee",
+                "Severity = customfield_10020",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file, {})
+
+    assert [(field.label, field.source) for field in config.metadata_fields] == [
+        ("Status", "status"),
+        ("Owner", "assignee"),
+        ("Severity", "customfield_10020"),
     ]

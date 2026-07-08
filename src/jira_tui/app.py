@@ -23,9 +23,11 @@ from textual.widgets import (
 
 from jira_tui.config import (
     DEFAULT_DETAIL_TABS,
+    DEFAULT_METADATA_FIELDS,
     ConfigError,
     DetailTabConfig,
     JiraConfig,
+    MetadataFieldConfig,
     load_config,
 )
 from jira_tui.jira_client import JiraClient, JiraClientError
@@ -404,16 +406,12 @@ class JiraTuiApp(App[None]):
             )
 
     def _render_issue(self, issue: IssueDetail) -> None:
-        labels = ", ".join(issue.labels) if issue.labels else "None"
         self.query_one("#issue-metadata", Static).update(
             "\n".join(
-                [
-                    f"{issue.key}: {issue.summary}",
-                    f"Status: {issue.status}",
-                    f"Assignee: {issue.assignee}",
-                    f"Reporter: {issue.reporter}",
-                    f"Priority: {issue.priority}",
-                    f"Labels: {labels}",
+                [f"{issue.key}: {issue.summary}"]
+                + [
+                    f"{field.label}: {self._content_for_metadata_field(issue, field)}"
+                    for field in self._metadata_fields()
                 ]
             )
         )
@@ -421,6 +419,19 @@ class JiraTuiApp(App[None]):
             self.query_one(f"#{self._tab_content_id(index)}", Static).update(
                 self._content_for_detail_tab(issue, tab)
             )
+
+    def _content_for_metadata_field(self, issue: IssueDetail, field: MetadataFieldConfig) -> str:
+        if field.source == "status":
+            return issue.status
+        if field.source == "assignee":
+            return issue.assignee
+        if field.source == "reporter":
+            return issue.reporter
+        if field.source == "priority":
+            return issue.priority
+        if field.source == "labels":
+            return ", ".join(issue.labels) if issue.labels else "None"
+        return issue.detail_fields.get(field.source) or "None"
 
     def _content_for_detail_tab(self, issue: IssueDetail, tab: DetailTabConfig) -> str:
         if tab.source == "comments":
@@ -525,6 +536,11 @@ class JiraTuiApp(App[None]):
         if self.jira_config is not None:
             return self.jira_config.detail_tabs
         return DEFAULT_DETAIL_TABS
+
+    def _metadata_fields(self) -> tuple[MetadataFieldConfig, ...]:
+        if self.jira_config is not None:
+            return self.jira_config.metadata_fields
+        return DEFAULT_METADATA_FIELDS
 
     def _tab_pane_id(self, index: int) -> str:
         return f"detail-tab-{index}"
