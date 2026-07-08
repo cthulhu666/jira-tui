@@ -4,7 +4,7 @@ import pytest
 from textual.widgets import DataTable, Static
 
 from jira_tui.app import JiraTuiApp
-from jira_tui.config import JiraConfig
+from jira_tui.config import DetailTabConfig, JiraConfig
 from jira_tui.jira_client import IssueSearchResult
 from jira_tui.models import Comment, IssueDetail, IssueSummary, Transition
 
@@ -54,6 +54,10 @@ class FakeJiraClient:
             priority="High",
             labels=("bug",),
             description="Description",
+            detail_fields={
+                "description": "Description",
+                "customfield_10010": "Acceptance criteria",
+            },
             comments=(Comment(author="Ada", body="Existing comment", created="2026-07-08"),),
         )
 
@@ -242,7 +246,35 @@ async def test_open_issue_renders_details() -> None:
         app.open_issue("DT-1")
         await pilot.pause()
 
-        detail = str(app.query_one("#issue-detail", Static).content)
-        comments = str(app.query_one("#comments", Static).content)
-        assert "DT-1: Fix login" in detail
+        metadata = str(app.query_one("#issue-metadata", Static).content)
+        description = str(app.query_one("#detail-tab-content-0", Static).content)
+        comments = str(app.query_one("#detail-tab-content-1", Static).content)
+        assert "DT-1: Fix login" in metadata
+        assert "Description" in description
         assert "Existing comment" in comments
+
+
+@pytest.mark.asyncio
+async def test_open_issue_renders_configured_detail_tabs() -> None:
+    config = JiraConfig(
+        base_url="https://example.atlassian.net",
+        email="me@example.com",
+        api_token="token",
+        detail_tabs=(
+            DetailTabConfig("Description", "description"),
+            DetailTabConfig("Acceptance Criteria", "customfield_10010"),
+            DetailTabConfig("Comments", "comments"),
+        ),
+    )
+    app = JiraTuiApp(config=config, client_factory=FakeJiraClient)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.open_issue("DT-1")
+        await pilot.pause()
+
+        assert str(app.query_one("#detail-tab-content-0", Static).content) == "Description"
+        assert str(app.query_one("#detail-tab-content-1", Static).content) == (
+            "Acceptance criteria"
+        )
+        assert "Existing comment" in str(app.query_one("#detail-tab-content-2", Static).content)

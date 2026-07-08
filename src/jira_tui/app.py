@@ -16,10 +16,18 @@ from textual.widgets import (
     ListItem,
     ListView,
     Static,
+    TabbedContent,
+    TabPane,
     TextArea,
 )
 
-from jira_tui.config import ConfigError, JiraConfig, load_config
+from jira_tui.config import (
+    DEFAULT_DETAIL_TABS,
+    ConfigError,
+    DetailTabConfig,
+    JiraConfig,
+    load_config,
+)
 from jira_tui.jira_client import JiraClient, JiraClientError
 from jira_tui.models import IssueDetail, IssueSummary, Transition
 
@@ -214,7 +222,7 @@ class JiraTuiApp(App[None]):
         self._provided_config = config
         self._client_factory = client_factory
         self.config_error: str | None = None
-        self.jira_config: JiraConfig | None = None
+        self.jira_config = self._load_initial_config()
         self.client: JiraClient | None = None
         self.current_jql = ""
         self.current_issue_key: str | None = None
@@ -228,8 +236,11 @@ class JiraTuiApp(App[None]):
             with Horizontal(id="content"):
                 yield DataTable(id="issue-table", cursor_type="row")
                 with Vertical(id="detail-pane"):
-                    yield Static("No issue selected.", id="issue-detail")
-                    yield Static("", id="comments")
+                    yield Static("No issue selected.", id="issue-metadata")
+                    with TabbedContent(id="detail-tabs"):
+                        for index, tab in enumerate(self._detail_tabs()):
+                            with TabPane(tab.label, id=self._tab_pane_id(index)):
+                                yield Static("", id=self._tab_content_id(index))
             yield Static("", id="status")
         yield Footer()
 
@@ -238,11 +249,12 @@ class JiraTuiApp(App[None]):
         table.add_columns("Key", "Status", "Summary", "Assignee", "Updated")
         table.zebra_stripes = True
 
-        try:
-            self.jira_config = self._provided_config or load_config()
-        except ConfigError as error:
-            self.config_error = str(error)
-            self._set_status(str(error), error=True)
+        if self.config_error:
+            self._set_status(self.config_error, error=True)
+            return
+
+        if self.jira_config is None:
+            self._set_status("Missing Jira configuration.", error=True)
             return
 
         self.client = self._client_factory(self.jira_config)
@@ -393,8 +405,7 @@ class JiraTuiApp(App[None]):
 
     def _render_issue(self, issue: IssueDetail) -> None:
         labels = ", ".join(issue.labels) if issue.labels else "None"
-        description = issue.description or "No description."
-        self.query_one("#issue-detail", Static).update(
+        self.query_one("#issue-metadata", Static).update(
             "\n".join(
                 [
                     f"{issue.key}: {issue.summary}",
@@ -403,19 +414,26 @@ class JiraTuiApp(App[None]):
                     f"Reporter: {issue.reporter}",
                     f"Priority: {issue.priority}",
                     f"Labels: {labels}",
-                    "",
-                    description,
                 ]
             )
         )
+        for index, tab in enumerate(self._detail_tabs()):
+            self.query_one(f"#{self._tab_content_id(index)}", Static).update(
+                self._content_for_detail_tab(issue, tab)
+            )
+
+    def _content_for_detail_tab(self, issue: IssueDetail, tab: DetailTabConfig) -> str:
+        if tab.source == "comments":
+            return self._format_comments(issue)
+        return issue.detail_fields.get(tab.source) or "No content."
+
+    def _format_comments(self, issue: IssueDetail) -> str:
         if issue.comments:
-            comments = "\n\n".join(
+            return "\n\n".join(
                 f"{comment.author} ({comment.created}):\n{comment.body}"
                 for comment in issue.comments[-5:]
             )
-        else:
-            comments = "No comments."
-        self.query_one("#comments", Static).update(comments)
+        return "No comments."
 
     def _render_issue_table(self, cursor_key: str | None = None) -> None:
         table = self.query_one("#issue-table", DataTable)
@@ -493,3 +511,23 @@ class JiraTuiApp(App[None]):
         status = self.query_one("#status", Static)
         status.update(message)
         status.set_class(error, "error")
+
+    def _load_initial_config(self) -> JiraConfig | None:
+        if self._provided_config is not None:
+            return self._provided_config
+        try:
+            return load_config()
+        except ConfigError as error:
+            self.config_error = str(error)
+            return None
+
+    def _detail_tabs(self) -> tuple[DetailTabConfig, ...]:
+        if self.jira_config is not None:
+            return self.jira_config.detail_tabs
+        return DEFAULT_DETAIL_TABS
+
+    def _tab_pane_id(self, index: int) -> str:
+        return f"detail-tab-{index}"
+
+    def _tab_content_id(self, index: int) -> str:
+        return f"detail-tab-content-{index}"

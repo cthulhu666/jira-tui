@@ -7,7 +7,7 @@ Build a Python/Textual Jira Cloud TUI in the `jira-tui` repo. The MVP uses `uv`,
 ## Key Changes
 
 - Create a `uv` Python app with `pyproject.toml`, package source under `src/jira_tui/`, tests under `tests/`, and console entrypoint `jira-tui`.
-- Use runtime dependencies: `textual`, `httpx`, and `platformdirs`.
+- Use runtime dependencies: `textual` and `httpx`.
 - Use dev dependencies: `pytest`, `pytest-asyncio`, `pytest-httpx`, and `ruff`.
 - Read `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` from environment first.
 - Optionally read a local config file from the user config directory for non-secret defaults like base URL and default JQL.

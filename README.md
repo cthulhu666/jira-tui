@@ -22,6 +22,25 @@ export JIRA_EMAIL="you@example.com"
 export JIRA_API_TOKEN="your-api-token"
 ```
 
+Optional detail tabs can be configured in the user config file:
+
+```ini
+[jira]
+base_url = https://your-site.atlassian.net
+email = you@example.com
+api_token = your-api-token
+
+[detail_tabs]
+Description = description
+Acceptance Criteria = customfield_10010
+Out of Scope = customfield_10011
+Technical Details = customfield_10012
+Comments = comments
+```
+
+Use Jira field keys, such as `customfield_10010`, for custom fields. The special source
+`comments` renders the issue comments tab.
+
 Run the app:
 
 ```sh

@@ -54,3 +54,35 @@ def test_environment_overrides_config_file(tmp_path: Path) -> None:
 def test_missing_required_config_raises() -> None:
     with pytest.raises(ConfigError, match="JIRA_BASE_URL"):
         load_config(Path("/missing.ini"), {})
+
+
+def test_load_config_reads_detail_tabs_in_file_order(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.ini"
+    config_file.write_text(
+        "\n".join(
+            [
+                "[jira]",
+                "base_url = https://file.atlassian.net",
+                "email = file@example.com",
+                "api_token = file-token",
+                "",
+                "[detail_tabs]",
+                "Description = description",
+                "Acceptance Criteria = customfield_10010",
+                "Out of Scope = customfield_10011",
+                "Technical Details = customfield_10012",
+                "Comments = comments",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_file, {})
+
+    assert [(tab.label, tab.source) for tab in config.detail_tabs] == [
+        ("Description", "description"),
+        ("Acceptance Criteria", "customfield_10010"),
+        ("Out of Scope", "customfield_10011"),
+        ("Technical Details", "customfield_10012"),
+        ("Comments", "comments"),
+    ]

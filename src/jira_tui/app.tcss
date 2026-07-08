@@ -23,14 +23,17 @@
     padding: 0 1;
 }
 
-#issue-detail {
-    height: 1fr;
-    overflow-y: auto;
+#issue-metadata {
+    height: auto;
+    margin-bottom: 1;
 }
 
-#comments {
-    height: 35%;
-    border-top: solid $secondary;
+#detail-tabs {
+    height: 1fr;
+}
+
+#detail-tabs Static {
+    height: 1fr;
     overflow-y: auto;
 }
 

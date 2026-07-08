@@ -6,7 +6,7 @@ import json
 import httpx
 import pytest
 
-from jira_tui.config import JiraConfig
+from jira_tui.config import DetailTabConfig, JiraConfig
 from jira_tui.jira_client import JiraAuthError, JiraClient, JiraQueryError
 
 
@@ -24,6 +24,15 @@ def _client(handler: httpx.MockTransport) -> JiraClient:
         ),
         client=async_client,
     )
+
+
+def _configured_client(handler: httpx.MockTransport, config: JiraConfig) -> JiraClient:
+    async_client = httpx.AsyncClient(
+        transport=handler,
+        base_url="https://example.atlassian.net",
+        auth=("me@example.com", "token"),
+    )
+    return JiraClient(config, client=async_client)
 
 
 @pytest.mark.asyncio
@@ -97,6 +106,54 @@ async def test_add_comment_sends_adf_body() -> None:
             ],
         }
     }
+
+
+@pytest.mark.asyncio
+async def test_get_issue_requests_configured_detail_tab_fields() -> None:
+    seen_fields: str | None = None
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal seen_fields
+        if request.url.path.endswith("/comment"):
+            return httpx.Response(200, json={"comments": []})
+        seen_fields = request.url.params["fields"]
+        return httpx.Response(
+            200,
+            json={
+                "key": "DT-1",
+                "fields": {
+                    "summary": "Fix login",
+                    "status": {"name": "To Do"},
+                    "assignee": None,
+                    "reporter": {"displayName": "Reporter"},
+                    "priority": {"name": "High"},
+                    "labels": [],
+                    "description": None,
+                    "customfield_10010": "Acceptance",
+                },
+            },
+        )
+
+    client = _configured_client(
+        httpx.MockTransport(handler),
+        JiraConfig(
+            base_url="https://example.atlassian.net",
+            email="me@example.com",
+            api_token="token",
+            detail_tabs=(
+                DetailTabConfig("Description", "description"),
+                DetailTabConfig("Acceptance Criteria", "customfield_10010"),
+                DetailTabConfig("Comments", "comments"),
+            ),
+        ),
+    )
+
+    issue = await client.get_issue("DT-1")
+
+    assert seen_fields is not None
+    assert "customfield_10010" in seen_fields.split(",")
+    assert "comments" not in seen_fields.split(",")
+    assert issue.detail_fields["customfield_10010"] == "Acceptance"
 
 
 @pytest.mark.asyncio

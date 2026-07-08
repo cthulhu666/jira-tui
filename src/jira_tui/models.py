@@ -72,6 +72,7 @@ class IssueDetail:
     priority: str
     labels: tuple[str, ...]
     description: str
+    detail_fields: dict[str, str] = field(default_factory=dict)
     comments: tuple[Comment, ...] = field(default_factory=tuple)
 
     @classmethod
@@ -93,6 +94,7 @@ class IssueDetail:
             priority=str(priority.get("name") or "None"),
             labels=tuple(str(label) for label in fields.get("labels") or []),
             description=extract_adf_text(fields.get("description")),
+            detail_fields={key: extract_adf_text(value) for key, value in fields.items()},
             comments=comments,
         )
 

@@ -74,7 +74,7 @@ class JiraClient:
             "GET",
             f"/rest/api/3/issue/{key}",
             params={
-                "fields": "summary,status,assignee,reporter,priority,labels,description",
+                "fields": ",".join(self._issue_detail_fields()),
             },
         )
         comments = await self._request("GET", f"/rest/api/3/issue/{key}/comment")
@@ -120,6 +120,21 @@ class JiraClient:
         if response.status_code == 400:
             raise JiraQueryError(message)
         raise JiraClientError(message)
+
+    def _issue_detail_fields(self) -> tuple[str, ...]:
+        fields = [
+            "summary",
+            "status",
+            "assignee",
+            "reporter",
+            "priority",
+            "labels",
+            "description",
+        ]
+        for tab in self._config.detail_tabs:
+            if tab.source != "comments" and tab.source not in fields:
+                fields.append(tab.source)
+        return tuple(fields)
 
 
 def _error_message(response: httpx.Response) -> str:
