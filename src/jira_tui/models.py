@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 
@@ -40,7 +41,7 @@ class IssueSummary:
             summary=str(fields.get("summary") or ""),
             status=str(status.get("name") or ""),
             assignee=JiraUser.from_payload(fields.get("assignee")).display_name,
-            updated=str(fields.get("updated") or ""),
+            updated=format_jira_datetime(fields.get("updated")),
             parent_key=str(parent.get("key") or "") or None,
             parent_summary=str(parent_fields.get("summary") or "") or None,
             is_subtask=bool(issue_type.get("subtask")) or bool(parent),
@@ -124,6 +125,17 @@ def adf_from_text(text: str) -> dict[str, Any]:
             for line in lines
         ],
     }
+
+
+def format_jira_datetime(value: Any) -> str:
+    if not value:
+        return ""
+    raw_value = str(value)
+    try:
+        parsed = datetime.strptime(raw_value, "%Y-%m-%dT%H:%M:%S.%f%z")
+    except ValueError:
+        return raw_value
+    return parsed.astimezone().strftime("%Y-%m-%d %H:%M")
 
 
 def extract_adf_text(value: Any) -> str:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+from datetime import datetime
 
 import httpx
 import pytest
@@ -79,6 +80,9 @@ async def test_search_issues_posts_jql_and_maps_results() -> None:
     ]
     assert result.issues[0].key == "DT-1"
     assert result.issues[0].assignee == "Ada"
+    assert result.issues[0].updated == datetime.strptime(
+        "2026-07-08T12:00:00.000+0000", "%Y-%m-%dT%H:%M:%S.%f%z"
+    ).astimezone().strftime("%Y-%m-%d %H:%M")
 
 
 @pytest.mark.asyncio

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from jira_tui.models import (
     IssueDetail,
     IssueSummary,
@@ -45,6 +47,7 @@ def test_issue_detail_maps_comments() -> None:
 
 
 def test_issue_summary_maps_subtask_parent() -> None:
+    updated = "2026-07-08T12:00:00.000+0200"
     issue = IssueSummary.from_payload(
         {
             "key": "DT-2",
@@ -52,7 +55,7 @@ def test_issue_summary_maps_subtask_parent() -> None:
                 "summary": "Subtask",
                 "status": {"name": "To Do"},
                 "assignee": {"displayName": "Ada"},
-                "updated": "2026-07-08",
+                "updated": updated,
                 "issuetype": {"subtask": True},
                 "parent": {
                     "key": "DT-1",
@@ -67,6 +70,9 @@ def test_issue_summary_maps_subtask_parent() -> None:
     assert issue.is_subtask is True
     assert issue.parent_key == "DT-1"
     assert issue.parent_summary == "Parent task"
+    assert issue.updated == datetime.strptime(
+        updated, "%Y-%m-%dT%H:%M:%S.%f%z"
+    ).astimezone().strftime("%Y-%m-%d %H:%M")
 
 
 def test_extract_field_path_text_maps_array_property() -> None:
