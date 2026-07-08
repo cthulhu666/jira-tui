@@ -39,6 +39,7 @@ assignee = currentUser() ORDER BY updated DESC
 - `/`: focus JQL search
 - `enter`: search from the input or open the selected issue
 - `r`: refresh current search or issue
+- `space`: expand or collapse subtasks for the selected parent issue
 - `c`: add a comment to the open issue
 - `t`: transition the open issue
 - `escape`: go back or cancel

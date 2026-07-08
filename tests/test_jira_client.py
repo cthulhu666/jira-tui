@@ -58,7 +58,16 @@ async def test_search_issues_posts_jql_and_maps_results() -> None:
     assert seen_request is not None
     assert seen_request.method == "POST"
     assert seen_request.url.path == "/rest/api/3/search/jql"
-    assert json.loads(seen_request.content)["jql"] == "project = DT"
+    payload = json.loads(seen_request.content)
+    assert payload["jql"] == "project = DT"
+    assert payload["fields"] == [
+        "summary",
+        "status",
+        "assignee",
+        "updated",
+        "issuetype",
+        "parent",
+    ]
     assert result.issues[0].key == "DT-1"
     assert result.issues[0].assignee == "Ada"
 

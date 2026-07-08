@@ -198,6 +198,7 @@ class JiraTuiApp(App[None]):
     BINDINGS = [
         ("/", "focus_search", "Search"),
         ("r", "refresh", "Refresh"),
+        ("space", "toggle_subtasks", "Subtasks"),
         ("c", "comment", "Comment"),
         ("t", "transition", "Transition"),
         ("q", "quit", "Quit"),
@@ -218,6 +219,7 @@ class JiraTuiApp(App[None]):
         self.current_jql = ""
         self.current_issue_key: str | None = None
         self.current_issues: tuple[IssueSummary, ...] = ()
+        self.expanded_parent_keys: set[str] = set()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -258,9 +260,9 @@ class JiraTuiApp(App[None]):
             self.search(self.current_jql)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        row = event.data_table.get_row(event.row_key)
-        if row:
-            self.open_issue(str(row[0]))
+        key = str(event.row_key.value)
+        if key:
+            self.open_issue(key)
 
     def action_focus_search(self) -> None:
         self.query_one("#jql-input", Input).focus()
@@ -270,6 +272,24 @@ class JiraTuiApp(App[None]):
             self.open_issue(self.current_issue_key)
         elif self.current_jql:
             self.search(self.current_jql)
+
+    def action_toggle_subtasks(self) -> None:
+        table = self.query_one("#issue-table", DataTable)
+        if table.cursor_row is None or not table.row_count:
+            return
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
+        key = str(row_key.value)
+        parent_key = key.removeprefix("parent:")
+        if not self._subtasks_for_parent(parent_key):
+            self._set_status(f"{parent_key} has no subtasks in the current result.")
+            return
+        if parent_key in self.expanded_parent_keys:
+            self.expanded_parent_keys.remove(parent_key)
+            self._set_status(f"Collapsed subtasks for {parent_key}.")
+        else:
+            self.expanded_parent_keys.add(parent_key)
+            self._set_status(f"Expanded subtasks for {parent_key}.")
+        self._render_issue_table(cursor_key=parent_key)
 
     def action_comment(self) -> None:
         if not self.current_issue_key:
@@ -295,17 +315,8 @@ class JiraTuiApp(App[None]):
             return
 
         self.current_issues = result.issues
-        table = self.query_one("#issue-table", DataTable)
-        table.clear()
-        for issue in result.issues:
-            table.add_row(
-                issue.key,
-                issue.status,
-                issue.summary,
-                issue.assignee,
-                issue.updated,
-                key=issue.key,
-            )
+        self.expanded_parent_keys.clear()
+        self._render_issue_table()
         suffix = "" if result.is_last else " (more results available)"
         self._set_status(f"Loaded {len(result.issues)} issues{suffix}.")
 
@@ -405,6 +416,78 @@ class JiraTuiApp(App[None]):
         else:
             comments = "No comments."
         self.query_one("#comments", Static).update(comments)
+
+    def _render_issue_table(self, cursor_key: str | None = None) -> None:
+        table = self.query_one("#issue-table", DataTable)
+        table.clear()
+        rendered_order: list[str] = []
+        children_by_parent = self._children_by_parent()
+        issues_by_key = self._issues_by_key_with_synthetic_parents()
+        rendered_keys: set[str] = set()
+
+        def render_issue(issue: IssueSummary, depth: int) -> None:
+            if issue.key in rendered_keys:
+                return
+            rendered_keys.add(issue.key)
+            rendered_order.append(issue.key)
+
+            children = children_by_parent.get(issue.key, ())
+            marker = ""
+            if children:
+                marker = "▼ " if issue.key in self.expanded_parent_keys else "▶ "
+            indentation = "  " * depth
+            table.add_row(
+                f"{indentation}{marker}{issue.key}",
+                issue.status,
+                issue.summary,
+                issue.assignee,
+                issue.updated,
+                key=issue.key,
+            )
+            if issue.key in self.expanded_parent_keys:
+                for child in children:
+                    render_issue(child, depth + 1)
+
+        for issue in self.current_issues:
+            root = self._root_issue_for(issue, issues_by_key)
+            render_issue(root, 0)
+        if cursor_key in rendered_order:
+            table.move_cursor(row=rendered_order.index(cursor_key))
+
+    def _subtasks_for_parent(self, parent_key: str) -> tuple[IssueSummary, ...]:
+        return self._children_by_parent().get(parent_key, ())
+
+    def _children_by_parent(self) -> dict[str, tuple[IssueSummary, ...]]:
+        children: dict[str, list[IssueSummary]] = {}
+        for issue in self.current_issues:
+            if issue.is_subtask and issue.parent_key:
+                children.setdefault(issue.parent_key, []).append(issue)
+        return {parent_key: tuple(items) for parent_key, items in children.items()}
+
+    def _issues_by_key_with_synthetic_parents(self) -> dict[str, IssueSummary]:
+        issues_by_key = {issue.key: issue for issue in self.current_issues}
+        for issue in self.current_issues:
+            if issue.is_subtask and issue.parent_key and issue.parent_key not in issues_by_key:
+                issues_by_key[issue.parent_key] = IssueSummary(
+                    key=issue.parent_key,
+                    summary=issue.parent_summary or "Parent issue",
+                    status="",
+                    assignee="",
+                    updated="",
+                )
+        return issues_by_key
+
+    def _root_issue_for(
+        self, issue: IssueSummary, issues_by_key: dict[str, IssueSummary]
+    ) -> IssueSummary:
+        root = issue
+        seen_keys = {issue.key}
+        while root.parent_key and root.parent_key in issues_by_key:
+            if root.parent_key in seen_keys:
+                break
+            root = issues_by_key[root.parent_key]
+            seen_keys.add(root.key)
+        return root
 
     def _set_status(self, message: str, *, error: bool = False) -> None:
         status = self.query_one("#status", Static)

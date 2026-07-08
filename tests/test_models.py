@@ -1,4 +1,4 @@
-from jira_tui.models import IssueDetail, adf_from_text, extract_adf_text
+from jira_tui.models import IssueDetail, IssueSummary, adf_from_text, extract_adf_text
 
 
 def test_adf_round_trip_text() -> None:
@@ -36,3 +36,28 @@ def test_issue_detail_maps_comments() -> None:
     assert detail.assignee == "Unassigned"
     assert detail.description == "Description"
     assert detail.comments[0].body == "Comment"
+
+
+def test_issue_summary_maps_subtask_parent() -> None:
+    issue = IssueSummary.from_payload(
+        {
+            "key": "DT-2",
+            "fields": {
+                "summary": "Subtask",
+                "status": {"name": "To Do"},
+                "assignee": {"displayName": "Ada"},
+                "updated": "2026-07-08",
+                "issuetype": {"subtask": True},
+                "parent": {
+                    "key": "DT-1",
+                    "fields": {
+                        "summary": "Parent task",
+                    },
+                },
+            },
+        }
+    )
+
+    assert issue.is_subtask is True
+    assert issue.parent_key == "DT-1"
+    assert issue.parent_summary == "Parent task"

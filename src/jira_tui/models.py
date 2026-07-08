@@ -24,17 +24,26 @@ class IssueSummary:
     status: str
     assignee: str
     updated: str
+    parent_key: str | None = None
+    parent_summary: str | None = None
+    is_subtask: bool = False
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> IssueSummary:
         fields = payload.get("fields") or {}
         status = fields.get("status") or {}
+        parent = fields.get("parent") or {}
+        parent_fields = parent.get("fields") or {}
+        issue_type = fields.get("issuetype") or {}
         return cls(
             key=str(payload.get("key") or ""),
             summary=str(fields.get("summary") or ""),
             status=str(status.get("name") or ""),
             assignee=JiraUser.from_payload(fields.get("assignee")).display_name,
             updated=str(fields.get("updated") or ""),
+            parent_key=str(parent.get("key") or "") or None,
+            parent_summary=str(parent_fields.get("summary") or "") or None,
+            is_subtask=bool(issue_type.get("subtask")) or bool(parent),
         )
 
 

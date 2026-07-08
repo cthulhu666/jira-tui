@@ -57,7 +57,7 @@ class JiraClient:
         payload: dict[str, Any] = {
             "jql": jql,
             "maxResults": max_results,
-            "fields": ["summary", "status", "assignee", "updated"],
+            "fields": ["summary", "status", "assignee", "updated", "issuetype", "parent"],
         }
         if next_page_token:
             payload["nextPageToken"] = next_page_token
