@@ -140,6 +140,28 @@ class MultiParentJiraClient(FakeJiraClient):
         )
 
 
+class CountingRefreshJiraClient(FakeJiraClient):
+    instances: list[CountingRefreshJiraClient] = []
+
+    def __init__(self, config: JiraConfig) -> None:
+        super().__init__(config)
+        self.search_count = 0
+        self.issue_fetch_count = 0
+        self.__class__.instances.append(self)
+
+    async def search_issues(
+        self, jql: str, *, max_results: int = 50, next_page_token: str | None = None
+    ) -> IssueSearchResult:
+        self.search_count += 1
+        return await super().search_issues(
+            jql, max_results=max_results, next_page_token=next_page_token
+        )
+
+    async def get_issue(self, key: str) -> IssueDetail:
+        self.issue_fetch_count += 1
+        return await super().get_issue(key)
+
+
 @pytest.mark.asyncio
 async def test_app_loads_search_results() -> None:
     config = JiraConfig(
@@ -156,6 +178,33 @@ async def test_app_loads_search_results() -> None:
 
         assert table.row_count == 1
         assert "Loaded 2 issues." in str(app.query_one("#status", Static).content)
+
+
+@pytest.mark.asyncio
+async def test_refresh_updates_issue_list_when_detail_is_open() -> None:
+    CountingRefreshJiraClient.instances.clear()
+    config = JiraConfig(
+        base_url="https://example.atlassian.net",
+        email="me@example.com",
+        api_token="token",
+        default_jql="project = DT",
+    )
+    app = JiraTuiApp(config=config, client_factory=CountingRefreshJiraClient)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        client = CountingRefreshJiraClient.instances[0]
+        app.open_issue("DT-1")
+        await pilot.pause()
+
+        assert client.search_count == 1
+        assert client.issue_fetch_count == 1
+
+        app.action_refresh()
+        await pilot.pause()
+
+        assert client.search_count == 2
+        assert client.issue_fetch_count == 1
 
 
 @pytest.mark.asyncio

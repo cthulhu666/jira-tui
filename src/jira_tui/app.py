@@ -284,10 +284,8 @@ class JiraTuiApp(App[None]):
         self.query_one("#jql-input", Input).focus()
 
     def action_refresh(self) -> None:
-        if self.current_issue_key:
-            self.open_issue(self.current_issue_key)
-        elif self.current_jql:
-            self.search(self.current_jql)
+        if self.current_jql:
+            self.search(self.current_jql, cursor_key=self.current_issue_key)
 
     def action_toggle_subtasks(self) -> None:
         table = self.query_one("#issue-table", DataTable)
@@ -320,7 +318,7 @@ class JiraTuiApp(App[None]):
         self.load_transitions(self.current_issue_key)
 
     @work(exclusive=True)
-    async def search(self, jql: str) -> None:
+    async def search(self, jql: str, cursor_key: str | None = None) -> None:
         if self.client is None:
             return
         self._set_status("Searching Jira...")
@@ -332,7 +330,7 @@ class JiraTuiApp(App[None]):
 
         self.current_issues = result.issues
         self.expanded_parent_keys.clear()
-        self._render_issue_table()
+        self._render_issue_table(cursor_key=cursor_key)
         suffix = "" if result.is_last else " (more results available)"
         self._set_status(f"Loaded {len(result.issues)} issues{suffix}.")
 
