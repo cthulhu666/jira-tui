@@ -264,7 +264,7 @@ class JiraTuiApp(App[None]):
         self.client = self._client_factory(self.jira_config)
         self.current_jql = self.jira_config.default_jql
         self.query_one("#jql-input", Input).value = self.current_jql
-        self.search(self.current_jql)
+        self.search(self.current_jql, focus_table=True)
 
     async def on_unmount(self) -> None:
         if self.client is not None:
@@ -318,7 +318,9 @@ class JiraTuiApp(App[None]):
         self.load_transitions(self.current_issue_key)
 
     @work(exclusive=True)
-    async def search(self, jql: str, cursor_key: str | None = None) -> None:
+    async def search(
+        self, jql: str, cursor_key: str | None = None, focus_table: bool = False
+    ) -> None:
         if self.client is None:
             return
         self._set_status("Searching Jira...")
@@ -331,6 +333,8 @@ class JiraTuiApp(App[None]):
         self.current_issues = result.issues
         self.expanded_parent_keys.clear()
         self._render_issue_table(cursor_key=cursor_key)
+        if focus_table:
+            self.query_one("#issue-table", DataTable).focus()
         suffix = "" if result.is_last else " (more results available)"
         self._set_status(f"Loaded {len(result.issues)} issues{suffix}.")
 

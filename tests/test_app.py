@@ -177,6 +177,7 @@ async def test_app_loads_search_results() -> None:
         table = app.query_one("#issue-table", DataTable)
 
         assert table.row_count == 1
+        assert table.has_focus
         assert "Loaded 2 issues." in str(app.query_one("#status", Static).content)
 
 
