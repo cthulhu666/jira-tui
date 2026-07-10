@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from textual.widgets import DataTable, Markdown, Static
 
+import jira_tui.app as app_module
 from jira_tui.app import JiraTuiApp
 from jira_tui.config import DetailTabConfig, JiraConfig, MetadataFieldConfig
 from jira_tui.jira_client import IssueSearchResult
@@ -206,6 +207,27 @@ async def test_refresh_updates_issue_list_when_detail_is_open() -> None:
 
         assert client.search_count == 2
         assert client.issue_fetch_count == 1
+
+
+@pytest.mark.asyncio
+async def test_query_history_selection_runs_selected_query(monkeypatch) -> None:
+    monkeypatch.setattr(app_module, "load_query_history", lambda: ("project = OLD",))
+    config = JiraConfig(
+        base_url="https://example.atlassian.net",
+        email="me@example.com",
+        api_token="token",
+        default_jql="project = DT",
+    )
+    app = JiraTuiApp(config=config, client_factory=FakeJiraClient)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app._handle_query_history("project = OLD")
+        await pilot.pause()
+
+        assert app.current_jql == "project = OLD"
+        assert app.query_one("#jql-input").value == "project = OLD"
+        assert "Loaded 2 issues." in str(app.query_one("#status", Static).content)
 
 
 @pytest.mark.asyncio

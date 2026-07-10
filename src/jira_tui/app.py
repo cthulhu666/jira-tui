@@ -31,6 +31,7 @@ from jira_tui.config import (
     MetadataFieldConfig,
     load_config,
 )
+from jira_tui.history import load_query_history, record_query_history
 from jira_tui.jira_client import JiraClient, JiraClientError
 from jira_tui.models import IssueDetail, IssueSummary, Transition, extract_field_path_text
 
@@ -202,12 +203,75 @@ class ConfirmScreen(ModalScreen[bool]):
         self.dismiss(True)
 
 
+class QueryHistoryScreen(ModalScreen[str | None]):
+    DEFAULT_CSS = """
+    QueryHistoryScreen {
+        align: center middle;
+    }
+
+    #query-history-dialog {
+        width: 80%;
+        height: 70%;
+        border: round $accent;
+        background: $surface;
+        padding: 1;
+    }
+
+    #query-history-list {
+        height: 1fr;
+        margin-top: 1;
+    }
+    """
+
+    BINDINGS = [
+        ("escape", "cancel", "Cancel"),
+        ("enter", "choose", "Choose"),
+    ]
+
+    def __init__(self, queries: tuple[str, ...]) -> None:
+        super().__init__()
+        self.queries = queries
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="query-history-dialog"):
+            yield Label("Query history")
+            yield ListView(
+                *[
+                    ListItem(Label(query), id=f"query-history-{index}")
+                    for index, query in enumerate(self.queries)
+                ],
+                id="query-history-list",
+            )
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        self.dismiss(self._query_for_item(event.item))
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+    def action_choose(self) -> None:
+        view = self.query_one("#query-history-list", ListView)
+        if view.highlighted_child is not None:
+            self.dismiss(self._query_for_item(view.highlighted_child))
+
+    def _query_for_item(self, item: ListItem) -> str | None:
+        item_id = item.id or ""
+        index_text = item_id.removeprefix("query-history-")
+        if not index_text.isdigit():
+            return None
+        index = int(index_text)
+        if index >= len(self.queries):
+            return None
+        return self.queries[index]
+
+
 class JiraTuiApp(App[None]):
     CSS_PATH = "app.tcss"
     TITLE = "Jira TUI"
 
     BINDINGS = [
         ("/", "focus_search", "Search"),
+        ("?", "query_history", "History"),
         ("r", "refresh", "Refresh"),
         ("space", "toggle_subtasks", "Subtasks"),
         ("c", "comment", "Comment"),
@@ -287,6 +351,13 @@ class JiraTuiApp(App[None]):
         if self.current_jql:
             self.search(self.current_jql, cursor_key=self.current_issue_key)
 
+    def action_query_history(self) -> None:
+        history = load_query_history()
+        if not history:
+            self._set_status("No successful query history yet.")
+            return
+        self.push_screen(QueryHistoryScreen(history), self._handle_query_history)
+
     def action_toggle_subtasks(self) -> None:
         table = self.query_one("#issue-table", DataTable)
         if table.cursor_row is None or not table.row_count:
@@ -331,12 +402,20 @@ class JiraTuiApp(App[None]):
             return
 
         self.current_issues = result.issues
+        record_query_history(jql)
         self.expanded_parent_keys.clear()
         self._render_issue_table(cursor_key=cursor_key)
         if focus_table:
             self.query_one("#issue-table", DataTable).focus()
         suffix = "" if result.is_last else " (more results available)"
         self._set_status(f"Loaded {len(result.issues)} issues{suffix}.")
+
+    def _handle_query_history(self, query: str | None) -> None:
+        if not query:
+            return
+        self.current_jql = query
+        self.query_one("#jql-input", Input).value = query
+        self.search(query, focus_table=True)
 
     @work(exclusive=True)
     async def open_issue(self, key: str) -> None:

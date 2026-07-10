@@ -72,8 +72,9 @@ assignee = currentUser() ORDER BY updated DESC
 ## MVP Controls
 
 - `/`: focus JQL search
+- `?`: open successful query history
 - `enter`: search from the input or open the selected issue
-- `r`: refresh current search or issue
+- `r`: refresh current issue list
 - `space`: expand or collapse subtasks for the selected parent issue
 - `c`: add a comment to the open issue
 - `t`: transition the open issue
